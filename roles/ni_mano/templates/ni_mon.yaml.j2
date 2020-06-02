@@ -1,0 +1,75 @@
+kafka_client:
+  consumer:
+    bootstrap.servers: {{ KAFKA_SERVER_ADDR }}:9092
+    enable.auto.commit: False
+    enable.auto.offset.store: False
+    # debug: 'cgrp,fetch,topic,broker,protocol'
+
+openstack_client:
+  auth:
+    auth_url: "http://{{ groups['controller'][0] }}/identity/v3"
+    username: "admin"
+    password: "{{ ADMIN_PASSWORD }}"
+    project_name: "demo"
+    user_domain_id: "default"
+    project_domain_id: "default"
+
+influxdb_client:
+  server: "{{ INFLUXDB_SERVER_ADDR }}"
+  database: collectd
+
+topo:
+  nodes:
+  - id: "NI-Compute-82-81"
+    type: "compute"
+    core_freq_MHz: 3200
+  - id: "NI-Compute-82-82"
+    type: "compute"
+    core_freq_MHz: 3200
+  - id: "NI-Compute-82-49"
+    type: "compute"
+    core_freq_MHz: 2660
+  - id: "NI-Compute-82-55"
+    type: "compute"
+    core_freq_MHz: 3300
+  - id: "Switch-edge-01"
+    type: "switch"
+  - id: "Switch-edge-02"
+    type: "switch"
+  - id: "Switch-core-01"
+    type: "switch"
+
+  links:
+  - id: 1
+    node1_id: "Switch-edge-01"
+    node2_id: "NI-Compute-82-81"
+    delay_us: 100
+    max_bw_mbps: 10000
+  - id: 2
+    node1_id: "Switch-edge-01"
+    node2_id: "NI-Compute-82-82"
+    delay_us: 100
+    max_bw_mbps: 10000
+  - id: 3
+    node1_id: "Switch-edge-02"
+    node2_id: "NI-Compute-82-49"
+    delay_us: 100
+    max_bw_mbps: 10000
+  - id: 4
+    node1_id: "Switch-core-01"
+    node2_id: "NI-Compute-82-55"
+    delay_us: 12000
+    max_bw_mbps: 10000
+  - id: 5
+    node1_id: "Switch-edge-01"
+    node2_id: "Switch-core-01"
+    delay_us: 5000
+    max_bw_mbps: 10000
+  - id: 6
+    node1_id: "Switch-edge-02"
+    node2_id: "Switch-core-01"
+    delay_us: 5000
+    max_bw_mbps: 10000
+
+
+

@@ -1,0 +1,108 @@
+### Controller
+[[local|localrc]]
+#RECLONE=True
+MULTI_HOST=1
+
+GIT_BASE=https://github.com
+
+HOST_IP={{ inventory_hostname }}
+SERVICE_HOST=${HOST_IP}
+RABBIT_HOST=${HOST_IP}
+DATABASE_HOST=${HOST_IP}
+GLANCE_HOSTPORT=${HOST_IP}:9292
+Q_HOST=${HOST_IP}
+
+FLAT_INTERFACE=
+# FIXED_RANGE=10.4.128.0/20
+# FIXED_NETWORK_SIZE=4096
+FLOATING_RANGE={{ FLOATING_RANGE }}
+Q_FLOATING_ALLOCATION_POOL={{ Q_FLOATING_ALLOCATION_POOL }}
+
+ADMIN_PASSWORD={{ ADMIN_PASSWORD }}
+DATABASE_PASSWORD={{ ADMIN_PASSWORD }}
+RABBIT_PASSWORD={{ ADMIN_PASSWORD }}
+SERVICE_PASSWORD={{ ADMIN_PASSWORD }}
+SERVICE_TOKEN={{ ADMIN_PASSWORD }}
+
+DATABASE_TYPE=mysql
+
+# Log
+USE_SCREEN=True
+SCREEN_LOGDIR=/opt/stack/logs/screen
+LOGFILE=/opt/stack/logs/xstack.sh.log
+LOGDAYS=1
+
+# Force config drive
+FORCE_CONFIG_DRIVE=True
+
+# Fix VNF deplyment hangs at scheduling. See https://bugs.launchpad.net/nova/+bug/1709594
+CELLSV2_SETUP=singleconductor
+
+# Networks
+Q_PLUGIN=ml2
+# Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan
+Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan,vxlan
+Q_ML2_TENANT_NETWORK_TYPE=vxlan
+# ENABLE_TENANT_VLANS=True
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=openvswitch,l2population
+{% if ( ( ENABLE_DVR is defined ) and ENABLE_DVR ) %}
+Q_DVR_MODE=dvr_snat
+{% endif %}
+
+# disable security groups
+Q_USE_SECGROUP=False
+LIBVIRT_FIREWALL_DRIVER=nova.virt.firewall.NoopFirewallDriver
+
+Q_USE_PROVIDERNET_FOR_PUBLIC=True
+PUBLIC_INTERFACE={{ DATA_INTERFACE }}
+OVS_PHYSICAL_BRIDGE=br-ex
+OVS_BRIDGE_MAPPINGS=public:br-ex
+
+# Tacker
+enable_plugin heat ${GIT_BASE}/openstack/heat {{ OPENSTACK_RELEASE }}
+enable_plugin networking-sfc ${GIT_BASE}/openstack/networking-sfc {{ OPENSTACK_RELEASE }}
+enable_plugin barbican ${GIT_BASE}/openstack/barbican {{ OPENSTACK_RELEASE }}
+enable_plugin mistral ${GIT_BASE}/openstack/mistral {{ OPENSTACK_RELEASE }}
+enable_plugin tacker ${GIT_BASE}/openstack/tacker {{ OPENSTACK_RELEASE }}
+
+{% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
+enable_plugin networking-ovs-dpdk ${GIT_BASE}/openstack/networking-ovs-dpdk {{ OPENSTACK_RELEASE }}
+OVS_DPDK_MODE=controller_ovs
+OVS_TUNNEL_CIDR_MAPPING=br-ex:{{ DPDK_CIDR }}
+{% endif %}
+
+# Services
+disable_all_services
+enable_service mysql rabbit key horizon g-api g-reg placement-api
+enable_service n-api n-cond n-sch n-novnc n-cauth
+enable_service q-svc q-agt q-dhcp q-l3 q-meta
+#enable_service c-api c-vol c-sch c-bak
+#enable_service s-proxy s-object s-container s-account
+
+# Branches
+GLANCE_BRANCH={{ OPENSTACK_RELEASE }}
+HORIZON_BRANCH={{ OPENSTACK_RELEASE }}
+KEYSTONE_BRANCH={{ OPENSTACK_RELEASE }}
+NEUTRON_BRANCH={{ OPENSTACK_RELEASE }}
+NOVA_BRANCH={{ OPENSTACK_RELEASE }}
+
+[[post-config|$NEUTRON_CONF]]
+[quotas]
+# Maximum number of Flow Classifiers per tenant. A negative value means
+# unlimited. (integer value)
+quota_flow_classifier=-1
+quota_port_chain=-1
+quota_port_pair_group=-1
+quota_port_pair=-1
+quota_service_graphs=-1
+
+[[post-config|/$Q_PLUGIN_CONF_FILE]]
+[agent]
+l2_population=True
+
+[[post-config|$NOVA_CONF]]
+[DEFAULT]
+cpu_allocation_ratio=1.0
+[filter_scheduler]
+enabled_filters=AvailabilityZoneFilter,ComputeFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter,SameHostFilter,DifferentHostFilter,PciPassthroughFilter,NUMATopologyFilter
+

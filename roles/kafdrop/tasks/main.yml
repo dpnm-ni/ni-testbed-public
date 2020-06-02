@@ -1,0 +1,38 @@
+---
+- block:
+  - name: "Create kafdrop dir"
+    file:
+      path: "/home/{{ ansible_user }}/kafdrop"
+      state: directory
+
+  - name: "Download kafdrop binary"
+    get_url:
+      url: "{{ kafdrop_bin_url }}"
+      dest: "/home/{{ ansible_user }}/kafdrop/kafdrop.jar"
+
+  - name: "config kafdrop as systemd service"
+    template:
+      src: ../templates/ni@kafdrop.service.j2
+      dest: /etc/systemd/system/ni@kafdrop.service
+      mode: 0644
+    become: true
+
+  tags: kafdrop
+
+- name: "send log to rsyslog"
+  include_role:
+    name: rsyslog
+    apply:
+      tags: kafdrop, kafdrop_rsyslog
+  vars:
+    RSYSLOG_SERVICE_ID: kafdrop
+  tags: kafdrop, kafdrop_rsyslog
+
+- name: "start kafdrop service"
+  systemd:
+    name: ni@kafdrop.service
+    state: restarted
+    enabled: true
+    daemon_reload: yes
+  become: true
+  tags: kafdrop, kafdrop_rsyslog

@@ -1,0 +1,21 @@
+---
+- block:
+  - name: "Adding local.conf"
+    template:
+      src: ../templates/local.conf.j2
+      dest: '{{ STACK_DIR }}/devstack/local.conf'
+
+  - name: "Adding local.sh"
+    copy:
+      src: ../files/local.sh
+      dest: '{{ STACK_DIR }}/devstack/local.sh'
+      mode: u=rwx,g=r,o=r
+
+
+  - name: "Running stack.sh. Check stack.log in remote host for more details"
+    shell: ./stack.sh >> stack.log 2>&1
+    args:
+      chdir: "{{ STACK_DIR }}/devstack"
+
+  become: true
+  become_user: stack

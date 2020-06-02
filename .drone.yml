@@ -1,0 +1,73 @@
+---
+kind: pipeline
+type: exec
+name: ni-testbed
+
+steps:
+- name: submodule
+  commands:
+  - git submodule update --init --recursive
+
+- name: cleanup previous build if exist
+  commands:
+  - ./scripts/virsh_clean.sh
+
+- name: Config test parameters and create internet access to test subnets
+  commands:
+  - ./scripts/test_config.sh
+
+- name: install ansible
+  commands:
+  - pip install --user ansible==2.7
+
+- name: install vagrant plugin
+  commands:
+  - vagrant plugin list
+  - vagrant plugin install vagrant-libvirt
+
+- name: deploy devstack rocky on vagrant
+  commands:
+  - vagrant up --provider=libvirt --no-parallel
+  - ansible-playbook -i inventories/vagrant openstack.yml
+
+- name: deploy devstack rocky with dpdk on vagrant
+  commands:
+  - vagrant destroy -f
+  - vagrant up --provider=libvirt --no-parallel
+  - ansible-playbook -i inventories/vagrant_dpdk openstack.yml
+
+- name: deploy devstack train on vagrant
+  commands:
+  - vagrant destroy -f
+  - sed -i "s|stable/rocky|stable/train|g" inventories/vagrant
+  - vagrant up --provider=libvirt --no-parallel
+  - ansible-playbook -i inventories/vagrant openstack.yml
+
+- name: final cleanup
+  commands:
+  - vagrant destroy -f
+
+- name: notify slack if build success
+  environment:
+    SLACK_HOOK_URL:
+      from_secret: slack_hook_url
+  commands:
+  - curl -X POST -H 'Content-type:application/json' --data '{"channel":"#ci_status", "username":"ci_report",
+      "text":"_${DRONE_REPO_NAME}__ status is __success__"}'
+      $SLACK_HOOK_URL
+  when:
+    status:
+    - success
+
+- name: notify slack if build fail
+  environment:
+    SLACK_HOOK_URL:
+      from_secret: slack_hook_url
+  commands:
+  - curl -X POST -H 'Content-type:application/json' --data '{"channel":"#ci_status", "username":"ci_report",
+      "text":"_${DRONE_REPO_NAME}__ status is __failure__"}'
+      $SLACK_HOOK_URL
+  when:
+    status:
+    - failure
+

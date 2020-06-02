@@ -1,0 +1,98 @@
+---
+# Install collectd from source to get latest version and match with libvirt
+- block:
+  - name: "Install build packages"
+    apt:
+      name: ['build-essential', 'librrd-dev', 'liboping-dev']
+      state: present
+    become: true
+
+  - name: "Install librdkafka 0.11.x for confluent-kafka-python support"
+    apt_key:
+      url: http://packages.confluent.io/deb/3.3/archive.key
+      state: present
+    become: true
+  - apt_repository:
+      repo: deb [arch=amd64] http://packages.confluent.io/deb/3.3 stable main
+      state: present
+    become: true
+  - apt:
+      name: ['librdkafka-dev=0.11.*']
+      state: present
+    become: true
+
+  - name: "Extract collectd 5.8.1 source"
+    unarchive:
+      src: ../files/collectd-5.8.1.tar.bz2
+      dest: /home/{{ ansible_user }}/
+      extra_opts:
+      - --transform
+      - 's/collectd-5.8.1/collectd/'
+
+  - name: "make-generate collectd"
+    shell: |
+      ./configure --prefix {{ COLLECTD_DIR }}
+      make all
+    args:
+      executable: /bin/bash
+      chdir: /home/{{ ansible_user }}/collectd/
+
+  - name: "install collectd"
+    shell: make install
+    args:
+      executable: /bin/bash
+      chdir: /home/{{ ansible_user }}/collectd/
+    become: true
+
+  - name: "Ensure python-pip and virtualenv are available"
+    apt:
+      name: ['python-pip', 'virtualenv']
+      state: present
+    become: true
+    when: COLLECTD_GNOCCHI_SERVER_ADDR is defined
+
+  - name: "install collectd-gnocchi"
+    pip:
+      name: ['collectd-gnocchi']
+      virtualenv: /home/{{ ansible_user }}/collectd_env
+    when: COLLECTD_GNOCCHI_SERVER_ADDR is defined
+
+  - block:
+    - name: "config collectd.conf"
+      template:
+        src: ../templates/collectd.conf.j2
+        dest: "{{ COLLECTD_DIR }}/etc/collectd.conf"
+        mode: 0644
+      become: true
+
+    - name: "config collectd as systemd service"
+      template:
+        src: ../templates/ni@collectd.service.j2
+        dest: /etc/systemd/system/ni@collectd.service
+        mode: 0644
+      become: true
+
+    tags: config_collectd
+
+  - import_tasks: collectd_web.yml
+    when: COLLECTD_ENABLE_WEBSERVER
+
+  tags: collectd
+
+- name: "send log to rsyslog"
+  include_role:
+    name: rsyslog
+    apply:
+      tags: collectd, collectd_rsyslog
+  vars:
+    RSYSLOG_SERVICE_ID: collectd
+  tags: collectd, collectd_rsyslog
+
+- name: "start collectd"
+  systemd:
+    name: ni@collectd.service
+    state: restarted
+    enabled: true
+    daemon_reload: yes
+  become: true
+  tags: collectd, collectd_rsyslog, config_collectd

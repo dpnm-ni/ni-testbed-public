@@ -1,0 +1,17 @@
+---
+# this role is intended to be included in other roles
+- block:
+  - name: "config rsyslog for {{ RSYSLOG_SERVICE_ID }}"
+    template:
+      src: ../templates/rsyslog.conf.j2
+      dest: /etc/rsyslog.d/{{ RSYSLOG_SERVICE_ID }}.conf
+      mode: 0644
+    become: true
+
+  - name: "restart {{ RSYSLOG_SERVICE_ID }} rsyslog"
+    systemd:
+      name: rsyslog
+      state: restarted
+      enabled: true
+      daemon_reload: yes
+    become: true

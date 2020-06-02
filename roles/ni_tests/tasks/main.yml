@@ -1,0 +1,39 @@
+---
+- block:
+  - name: "Ensure python3 and virtualenv are available"
+    apt:
+      name: ['python3', 'virtualenv']
+      state: present
+    become: true
+
+  - name: "clone ni tests"
+    git:
+      repo: 'https://github.com/dpnm-ni/ni-mano'
+      dest: "/home/{{ ansible_user }}/ni_mano"
+
+  - name: "install ni tests requirements.txt"
+    pip:
+      virtualenv: /home/{{ ansible_user }}/ni_mano/.env
+      virtualenv_python: python3
+      chdir: /home/{{ ansible_user }}/ni_mano/tests
+      requirements: requirements.txt
+
+  - name: "config ni tests"
+    template:
+      src: ../templates/config.yaml.j2
+      dest: /home/{{ ansible_user }}/ni_mano/tests/config/config.yaml
+      mode: 0644
+
+  - name: "run ni tests"
+    # ansible use /bin/sh, thus 'source' is '.''
+    shell: |
+      . /home/{{ ansible_user }}/ni_mano/.env/bin/activate && pytest tests && deactivate
+    args:
+      chdir: /home/{{ ansible_user }}/ni_mano
+
+  tags: ni_tests
+
+
+
+
+

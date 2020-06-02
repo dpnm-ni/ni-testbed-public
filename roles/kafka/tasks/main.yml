@@ -1,0 +1,74 @@
+---
+- block:
+  - name: "Create kafka dir"
+    file:
+      path: "/home/{{ ansible_user }}/kafka"
+      state: directory
+
+  - name: Download and unarchive kafka
+    unarchive:
+      src: "{{ kafka_url }}"
+      dest: "/home/{{ ansible_user }}/kafka"
+      remote_src: yes
+      extra_opts: ['--strip-components=1']
+    register: download_kafka
+    until: download_kafka is not failed
+    retries: 3
+    delay: 10
+
+  - name: "config kafka server"
+    template:
+      src: ../templates/server.properties.j2
+      dest: /home/{{ ansible_user }}/kafka/config/server.properties
+      mode: 0644
+
+  - name: "config zookeeper as systemd service"
+    template:
+      src: ../templates/ni@zookeeper.service.j2
+      dest: /etc/systemd/system/ni@zookeeper.service
+      mode: 0644
+    become: true
+
+  - name: "config kafka as systemd service"
+    template:
+      src: ../templates/ni@kafka.service.j2
+      dest: /etc/systemd/system/ni@kafka.service
+      mode: 0644
+    become: true
+
+  tags: kafka
+
+- block:
+  - name: "send zookeeper log to rsyslog"
+    include_role:
+      name: rsyslog
+      apply:
+        tags: kafka, kafka_rsyslog
+    vars:
+      RSYSLOG_SERVICE_ID: zookeeper
+
+  - name: "send kafka log to rsyslog"
+    include_role:
+      name: rsyslog
+      apply:
+        tags: kafka, kafka_rsyslog
+    vars:
+      RSYSLOG_SERVICE_ID: kafka
+
+  - name: "start zookeeper service"
+    systemd:
+      name: ni@zookeeper.service
+      state: restarted
+      enabled: true
+      daemon_reload: yes
+    become: true
+
+  - name: "start kafka service"
+    systemd:
+      name: ni@kafka.service
+      state: restarted
+      enabled: true
+      daemon_reload: yes
+    become: true
+
+  tags: kafka, kafka_rsyslog

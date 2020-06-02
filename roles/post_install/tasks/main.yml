@@ -1,0 +1,14 @@
+---
+- block:
+  - name: "templating post_install script to target host"
+    template:
+      src: ../templates/post_install.sh.j2
+      dest: /home/{{ ansible_user }}/post_install.sh
+      mode: 0755
+
+  - name: "execute post_install script"
+    shell:
+      cmd: ./post_install.sh
+      chdir: /home/{{ ansible_user }}
+
+  tags: post_devstack_install

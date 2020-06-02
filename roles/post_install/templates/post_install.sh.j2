@@ -1,0 +1,119 @@
+#!/bin/bash
+#
+# post_install script
+#
+
+set -e
+set -x
+
+export OS_USERNAME=admin
+export OS_PASSWORD={{ ADMIN_PASSWORD }}
+export OS_PROJECT_NAME=demo
+export OS_PROJECT_DOMAIN_ID=default
+export OS_USER_DOMAIN_ID=default
+export OS_IDENTITY_API_VERSION=3
+export OS_AUTH_URL="http://127.0.0.1/identity"
+
+# discover compute hosts
+nova-manage cell_v2 discover_hosts --verbose
+
+
+# create images
+IMAGE_NAMES=('u16.04_x64' \
+            'u18.04_x64')
+IMAGE_LINKS=('https://cloud-images.ubuntu.com/xenial/current/xenial-server-cloudimg-amd64-disk1.img' \
+            'https://cloud-images.ubuntu.com/bionic/current/bionic-server-cloudimg-amd64.img')
+
+mkdir -p images
+for i in ${!IMAGE_NAMES[@]}; do
+    if ! [[ -f "images/${IMAGE_NAMES[$i]}.img" ]]; then
+        wget -O images/${IMAGE_NAMES[$i]}.img ${IMAGE_LINKS[$i]}
+    fi
+    if ! $(openstack image list | grep -wqi "${IMAGE_NAMES[$i]}"); then
+        openstack image create --disk-format qcow2 --public \
+                               --file images/${IMAGE_NAMES[$i]}.img \
+                               ${IMAGE_NAMES[$i]}
+    fi
+done
+
+
+# create vnfflavors. by default, set os_image_id to u16.04_x64
+DEFAULT_OS_IMAGE_ID=$(openstack image list | grep -w 'u16.04_x64' | sed 's/|/ /g' | awk '{print $1}')
+# command may return error if flavor exist, so set +e
+set +e
+for CPUS in 1 2 4; do
+    for RAM in $(( $CPUS * 512 )) $(( $CPUS * 1024 )); do
+        openstack flavor create --ram $RAM --disk 10 --vcpus $CPUS \
+                        --property capacity_mbps=10000 --property delay_us=500 \
+                        --property os_image_id=${DEFAULT_OS_IMAGE_ID} \
+                        --property hw:cpu_policy=dedicated --property hw:cpu_thread_policy=prefer \
+                        {% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
+                        --property hw:mem_page_size=any \
+                        {% endif %}
+                        vnf.generic.${CPUS}.${RAM}
+    done
+done
+
+openstack flavor create --ram 512 --disk 10 --vcpus 1 \
+                        --property capacity_mbps=10000 --property delay_us=500 \
+                        --property os_image_id=${DEFAULT_OS_IMAGE_ID} \
+                        --property hw:cpu_policy=dedicated --property hw:cpu_thread_policy=prefer \
+                        {% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
+                        --property hw:mem_page_size=any \
+                        {% endif %}
+                        vnf.fw.1.512
+
+openstack flavor create --ram 2048 --disk 10 --vcpus 4 \
+                        --property capacity_mbps=500 --property delay_us=2000 \
+                        --property os_image_id=${DEFAULT_OS_IMAGE_ID} \
+                        --property hw:cpu_policy=dedicated --property hw:cpu_thread_policy=prefer \
+                        {% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
+                        --property hw:mem_page_size=any \
+                        {% endif %}
+                        vnf.ips.4.2048
+set -e
+
+
+# create NI-data and NI-management networks
+NI_MAN_NET="NI-management"
+NI_DATA_NET="NI-data"
+# default router should be already created during devstack installation
+DEFAULT_ROUTER="router1"
+
+if ! $(openstack network list | grep -wqi "$NI_MAN_NET"); then
+    openstack network create --share $NI_MAN_NET
+    openstack subnet create subnet-$NI_MAN_NET --network $NI_MAN_NET \
+                                               --subnet-range 10.10.10.0/24
+    openstack router add subnet $DEFAULT_ROUTER subnet-$NI_MAN_NET
+fi
+
+if ! $(openstack network list | grep -wqi "$NI_DATA_NET"); then
+    openstack network create --share $NI_DATA_NET
+    openstack subnet create subnet-$NI_DATA_NET --network $NI_DATA_NET \
+                                                --subnet-range 10.10.20.0/24 \
+                                                --no-dhcp --gateway none
+fi
+
+# create cloud config file and sample vnf
+cat << EOF > cloud-config
+#cloud-config
+    password: {{ ADMIN_PASSWORD }}
+    chpasswd: { expire: False }
+    ssh_pwauth: True
+    manage_etc_hosts: true
+EOF
+SAMPLE_VNF_NAME="vnf_sample_do_not_delete"
+if ! $(openstack server list | grep -wqi "$SAMPLE_VNF_NAME"); then
+    openstack server create --flavor vnf.generic.1.512 \
+                            --image $DEFAULT_OS_IMAGE_ID \
+                            --network $NI_MAN_NET --network $NI_DATA_NET \
+                            --user-data cloud-config \
+                            $SAMPLE_VNF_NAME
+fi
+
+# allocate a floating IP: the first IP of the pool
+FT_IP=$(echo {{ Q_FLOATING_ALLOCATION_POOL }} |  grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}" | head -1)
+if ! $(openstack floating ip list | grep -wqi "$FT_IP"); then
+    openstack floating ip create --project $OS_PROJECT_NAME --floating-ip-address $FT_IP public
+fi
+openstack server add floating ip $SAMPLE_VNF_NAME $FT_IP

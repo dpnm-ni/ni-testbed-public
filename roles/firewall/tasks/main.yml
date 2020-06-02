@@ -1,0 +1,42 @@
+---
+- block:
+  - name: "Ensure ufw is installed"
+    apt:
+      name: 'ufw'
+      state: present
+
+  - name: "Reset ufw to clear old rules"
+    ufw:
+      state: reset
+
+  - name: "Allow SSH in UFW"
+    ufw:
+      rule: allow
+      name: OpenSSH
+
+  - name: "Default block incoming traffic"
+    ufw:
+      direction: incoming
+      policy: deny
+
+  - name: "Default allow outgoing traffic"
+    ufw:
+      direction: outgoing
+      policy: allow
+
+  - name: "Allow subnets"
+    ufw:
+      rule: allow
+      src: "{{ item }}"
+    with_items: "{{ FW_ALLOW_SUBNETS }}"
+
+  - name: "restart ufw"
+    service:
+      name: ufw
+      state: restarted
+
+  - name: "Enable ufw"
+    ufw: state=enabled
+
+  become: true
+  tags: firewall

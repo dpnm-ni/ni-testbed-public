@@ -1,0 +1,116 @@
+---
+- hosts: all
+  gather_facts: False
+  roles:
+  - common
+
+- hosts: controller
+  roles:
+  - controller
+
+- hosts: computes
+  roles:
+  - computes
+  tasks:
+  - name: "install collectd if monitoring host exist"
+    import_role:
+      name: collectd
+    when: "'monitoring' in groups"
+    tags: monitoring
+
+- hosts: controller
+  roles:
+  - post_install
+
+- hosts: monitoring
+  vars:
+    openjdk_version: "openjdk-11-jdk"
+    kafka_url: "https://archive.apache.org/dist/kafka/2.2.0/kafka_2.12-2.2.0.tgz"
+    kafdrop_bin_url: "https://bintray.com/obsidiandynamics/kafdrop/download_file?file_path=com%2Fobsidiandynamics%2Fkafdrop%2Fkafdrop%2F3.8.1%2Fkafdrop-3.8.1.jar"
+    grafana_version: "{{ GRAFANA_RELEASE }}"
+    grafana_security:
+      admin_user: admin
+      admin_password: "{{ ADMIN_PASSWORD }}"
+    grafana_provisioning_synced: true
+    grafana_datasources:
+      - name: InfluxDB
+        type: influxdb
+        access: proxy
+        database: collectd
+        url: 'http://{{ INFLUXDB_SERVER_ADDR }}:8086'
+  roles:
+  - firewall
+  - role: influxdb
+    become: true
+  - java
+  - kafka
+  - kafdrop
+  - role: grafana
+    tags: grafana
+
+  tasks:
+  - name: "config rsyslog"
+    with_items: [kafka_extractor, ni_mon, ni_nfvo]
+    include_role:
+      name: rsyslog
+    vars:
+      RSYSLOG_SERVICE_ID: "{{ item }}"
+  - name: "install and config ni_mano services"
+    with_items: [kafka_extractor, ni_mon, ni_nfvo]
+    include_role:
+      name: ni_mano
+      apply:
+        tags: ni_mano, "{{ item }}"
+    vars:
+      SERVICE_MODULE: "{{ item }}"
+    tags: ni_mano, kafka_extractor, ni_mon, ni_nfvo
+
+  tags: monitoring
+
+#
+# ntp. controller is the ntp server.
+#
+- hosts: controller
+  vars:
+    ntp_timezone: "{{ TIME_ZONE | default('Asia/Seoul') }}"
+    ntp_manage_config: true
+    ntp_area: asia
+    ntp_restrict:
+    - "127.0.0.1"
+    # why need ::1: https://serverfault.com/questions/558596/ntp-local-query-always-times-out
+    - "::1"
+    - "{{ NTP_LOCAL_NET }} nomodify notrap"
+  roles:
+  - ntp
+  tags: ntp
+  become: true
+
+- hosts: computes, monitoring
+  vars:
+    ntp_timezone: "{{ TIME_ZONE | default('Asia/Seoul') }}"
+    ntp_manage_config: true
+    ntp_servers:
+    - "{{ groups['controller'][0] }} iburst"
+  roles:
+  - ntp
+  tags: ntp
+  become: true
+
+- hosts: all
+  tasks:
+  - name: "disable timesyncd so we use NTP only"
+    raw: timedatectl set-ntp off
+
+  - name: "restart ntp service"
+    systemd:
+      name: ntp
+      state: restarted
+      enabled: true
+      daemon_reload: yes
+
+  become: true
+  tags: ntp
+
+- hosts: monitoring
+  roles:
+  - ni_tests

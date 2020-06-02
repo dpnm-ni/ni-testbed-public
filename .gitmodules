@@ -1,0 +1,9 @@
+[submodule "roles/grafana"]
+	path = roles/grafana
+	url = https://github.com/cloudalchemy/ansible-grafana
+[submodule "roles/influxdb"]
+	path = roles/influxdb
+	url = https://github.com/rossmcdonald/influxdb
+[submodule "roles/ntp"]
+	path = roles/ntp
+	url = https://github.com/geerlingguy/ansible-role-ntp

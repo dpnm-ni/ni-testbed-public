@@ -1,0 +1,18 @@
+[Unit]
+Description = ni ni@zookeeper.service
+Requires = network.target remote-fs.target
+After = network.target remote-fs.target
+
+[Service]
+Type = simple
+User = {{ ansible_user }}
+ExecStart = /home/{{ ansible_user }}/kafka/bin/zookeeper-server-start.sh /home/{{ ansible_user }}/kafka/config/zookeeper.properties
+ExecStop = /home/{{ ansible_user }}/kafka/bin/zookeeper-server-stop.sh
+StandardOutput = syslog
+StandardError = syslog
+SyslogIdentifier = zookeeper
+Restart = on-abnormal
+
+[Install]
+WantedBy = multi-user.target
+

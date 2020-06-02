@@ -1,0 +1,50 @@
+---
+  - block:
+    - name: "install python 2 if not exist"
+      raw: test -e /usr/bin/python || (apt-get -y update && apt-get install -y python-minimal)
+      become: true
+
+    - name: "Update apt"
+      apt:
+        update_cache: yes
+        cache_valid_time: 86400
+
+    - name: "Install packages"
+      apt: name={{ item }} state=present
+      with_items:
+        - git
+        # see: https://docs.ansible.com/ansible/latest/user_guide/become.html#becoming-an-unprivileged-user
+        - acl
+        - python
+        - tar
+
+    - name: "Add stack user"
+      user:
+        name: stack
+        shell: /bin/bash
+        home: "{{ STACK_DIR }}"
+
+    - name: "chown stack .cache directory. See: https://bugs.launchpad.net/devstack/+bug/1671409"
+      file:
+        path: "{{ STACK_DIR }}/.cache"
+        state: directory
+        owner: stack
+        group: stack
+
+    - name: "Passwordless stack user"
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^stack'
+        line: 'stack ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+    become: true
+
+  - name: "Clone devstack"
+    git:
+      repo: 'https://github.com/openstack/devstack'
+      dest: "{{ STACK_DIR }}/devstack"
+      version: "{{ OPENSTACK_RELEASE }}"
+    become: true
+    become_user: stack

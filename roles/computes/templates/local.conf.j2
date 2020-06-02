@@ -1,0 +1,128 @@
+### computes
+[[local|localrc]]
+#RECLONE=True
+MULTI_HOST=1
+
+GIT_BASE=https://github.com
+
+HOST_IP={{ inventory_hostname }}
+CONTROLLER_ADDR={{ groups['controller'][0] }}
+SERVICE_HOST=$CONTROLLER_ADDR
+RABBIT_HOST=$CONTROLLER_ADDR
+DATABASE_HOST=$CONTROLLER_ADDR
+
+FLAT_INTERFACE=
+
+ADMIN_PASSWORD={{ ADMIN_PASSWORD }}
+DATABASE_PASSWORD={{ ADMIN_PASSWORD }}
+RABBIT_PASSWORD={{ ADMIN_PASSWORD }}
+SERVICE_PASSWORD={{ ADMIN_PASSWORD }}
+SERVICE_TOKEN={{ ADMIN_PASSWORD }}
+
+DATABASE_TYPE=mysql
+
+# Log
+USE_SCREEN=True
+SCREEN_LOGDIR=/opt/stack/logs/screen
+LOGFILE=/opt/stack/logs/xstack.sh.log
+LOGDAYS=1
+
+# Force config drive
+FORCE_CONFIG_DRIVE=True
+
+# Networks
+Q_PLUGIN=ml2
+# Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan
+Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan,vxlan
+Q_ML2_TENANT_NETWORK_TYPE=vxlan
+# ENABLE_TENANT_VLANS=True
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=openvswitch,l2population
+{% if ( ( ENABLE_DVR is defined ) and ENABLE_DVR ) %}
+Q_DVR_MODE=dvr
+{% endif %}
+
+{% if ( ( ENABLE_DVR is defined ) and ENABLE_DVR ) %}
+FLOATING_RANGE={{ FLOATING_RANGE }}
+Q_FLOATING_ALLOCATION_POOL={{ Q_FLOATING_ALLOCATION_POOL }}
+
+Q_USE_PROVIDERNET_FOR_PUBLIC=True
+PUBLIC_INTERFACE={{ DATA_INTERFACE }}
+{% endif %}
+
+# disable security groups
+Q_USE_SECGROUP=False
+LIBVIRT_FIREWALL_DRIVER=nova.virt.firewall.NoopFirewallDriver
+
+{% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
+OVS_PHYSICAL_BRIDGE=br-{{ DATA_INTERFACE }}
+OVS_BRIDGE_MAPPINGS=public:br-{{ DATA_INTERFACE }}
+{% elif ( ( ENABLE_DVR is defined ) and ENABLE_DVR ) %}
+OVS_PHYSICAL_BRIDGE=br-ex
+OVS_BRIDGE_MAPPINGS=public:br-ex
+{% endif %}
+
+# Fix VNF deplyment hangs at scheduling. See https://bugs.launchpad.net/nova/+bug/1709594
+CELLSV2_SETUP=singleconductor
+
+enable_plugin networking-sfc ${GIT_BASE}/openstack/networking-sfc {{ OPENSTACK_RELEASE }}
+
+{% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
+enable_plugin networking-ovs-dpdk https://opendev.org/x/networking-ovs-dpdk {{ OPENSTACK_RELEASE }}
+OVS_DPDK_MODE=compute
+OVS_DATAPATH_TYPE=netdev
+OVS_TUNNEL_CIDR_MAPPING=br-{{ DATA_INTERFACE }}:{{ DPDK_CIDR }}
+OVS_NUM_HUGEPAGES={{ DPDK_OVS_NUM_HUGEPAGES }}
+OVS_DPDK_BIND_PORT={{ DPDK_OVS_DPDK_BIND_PORT }}
+{% if ( DPDK_OVS_SOCKET_MEM is defined ) %}
+OVS_SOCKET_MEM={{ DPDK_OVS_SOCKET_MEM }}
+{% endif %}
+{% endif %}
+
+# Services
+disable_all_services
+enable_service n-cpu n-novnc
+enable_service placement-client
+{% if ( ( ENABLE_DVR is defined ) and ENABLE_DVR ) %}
+enable_service q-agt q-l3 q-meta
+{% else %}
+enable_service q-agt
+{% endif %}
+
+# VNC
+NOVA_VNC_ENABLED=True
+VNCSERVER_PROXYCLIENT_ADDRESS=${HOST_IP}
+VNCSERVER_LISTEN=${HOST_IP}
+
+LIBVIRT_TYPE={{ LIBVIRT_TYPE }}
+
+# Branches
+KEYSTONE_BRANCH={{ OPENSTACK_RELEASE }}
+NEUTRON_BRANCH={{ OPENSTACK_RELEASE }}
+NOVA_BRANCH={{ OPENSTACK_RELEASE }}
+
+[[post-config|$NEUTRON_CONF]]
+[quotas]
+# Maximum number of Flow Classifiers per tenant. A negative value means
+# unlimited. (integer value)
+quota_flow_classifier=-1
+quota_port_chain=-1
+quota_port_pair_group=-1
+quota_port_pair=-1
+quota_service_graphs=-1
+
+[[post-config|/$Q_PLUGIN_CONF_FILE]]
+[agent]
+l2_population=True
+arp_responder=True
+
+[[post-config|$NOVA_CONF]]
+[DEFAULT]
+cpu_allocation_ratio=1.0
+{% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL and ( DPDK_RESERVED_HUGE_PAGES_NUMA0 is defined ) ) %}
+reserved_huge_pages={{ DPDK_RESERVED_HUGE_PAGES_NUMA0 }}
+{% endif %}
+{% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL and ( DPDK_RESERVED_HUGE_PAGES_NUMA1 is defined ) ) %}
+reserved_huge_pages={{ DPDK_RESERVED_HUGE_PAGES_NUMA1 }}
+{% endif %}
+[filter_scheduler]
+enabled_filters=AvailabilityZoneFilter,ComputeFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter,SameHostFilter,DifferentHostFilter,PciPassthroughFilter,NUMATopologyFilter

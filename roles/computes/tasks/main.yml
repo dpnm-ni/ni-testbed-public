@@ -1,0 +1,53 @@
+---
+- block:
+  - name: "Adding local.conf"
+    template:
+      src: ../templates/local.conf.j2
+      dest: '{{ STACK_DIR }}/devstack/local.conf'
+
+  - name: "Running stack.sh. Check stack.log in remote host for more details."
+    shell: ./stack.sh >> stack.log 2>&1
+    args:
+      chdir: "{{ STACK_DIR }}/devstack"
+
+  become: true
+  become_user: stack
+
+- name: "config mpls with vxlan: load kernel module"
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - mpls_router
+    - mpls_gso
+    - mpls_iptunnel
+  become: true
+  tags: "config_mpls"
+
+- name: "config mpls with vxlan: set sysctl params"
+  sysctl:
+    name: "{{ item }}"
+    value: '1'
+    sysctl_set: yes
+    state: present
+  with_items:
+      - net.mpls.conf.br-tun.input
+      - net.mpls.conf.{{ DATA_INTERFACE }}.input
+  when: not DPDK_INSTALL
+  become: true
+  tags: "config_mpls"
+
+- block:
+  - name: "set libvirtd log-level to info, the debug-level log can take all disk space"
+    lineinfile:
+      path: /etc/libvirt/libvirtd.conf
+      regexp: '^log_filter'
+      line: log_level=3
+
+  - name: "restart libvirtd so that conf file takes effect"
+    service:
+      name: libvirtd
+      state: restarted
+
+  become: true
+  tags: "config_libvirt_log"

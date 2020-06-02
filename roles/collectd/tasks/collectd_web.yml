@@ -1,0 +1,43 @@
+---
+  - name: "Install collectd_web dependencies"
+    apt:
+      name: ['librrds-perl', 'libjson-perl', 'libhtml-parser-perl', 'libcgi-session-perl']
+      state: present
+    become: true
+
+  - name: "clone collectd-web"
+    git:
+      repo: 'https://github.com/httpdss/collectd-web'
+      dest: /home/{{ ansible_user }}/collectd-web
+  
+  - name: "check collectd_web dependencies"
+    shell: ./check_deps.sh
+    args:
+      chdir: /home/{{ ansible_user }}/collectd-web
+
+  - file:
+      path: /etc/collectd
+      state: directory
+    become: true
+  
+  - name: "put collectd-web config file to /etc/collectd"
+    template:
+      src: ../templates/collection.conf.j2
+      dest: /etc/collectd/collection.conf
+      mode: 0644
+    become: true
+
+  - name: "config collectd-web as systemd service"
+    template:
+      src: ../templates/ni@collectd-web.service.j2
+      dest: /etc/systemd/system/ni@collectd-web.service
+      mode: 0644
+    become: true
+
+  - name: "start collectd-web"
+    systemd:
+      name: ni@collectd-web.service
+      state: restarted
+      enabled: true
+      daemon_reload: yes
+    become: true

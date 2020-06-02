@@ -1,0 +1,14 @@
+---
+  - block:
+    - name: "Add openjdk repo"
+      apt_repository:
+        repo: 'ppa:openjdk-r/ppa'
+      register: add_openjdk_repo
+      until: add_openjdk_repo is not failed
+      retries: 3
+      delay: 10
+
+    - name: "Install openjdk packages"
+      apt: name={{ openjdk_version }} state=present
+
+    become: true
