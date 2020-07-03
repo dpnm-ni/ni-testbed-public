@@ -63,6 +63,9 @@ enable_plugin heat ${GIT_BASE}/openstack/heat {{ OPENSTACK_RELEASE }}
 enable_plugin networking-sfc ${GIT_BASE}/openstack/networking-sfc {{ OPENSTACK_RELEASE }}
 enable_plugin barbican ${GIT_BASE}/openstack/barbican {{ OPENSTACK_RELEASE }}
 enable_plugin mistral ${GIT_BASE}/openstack/mistral {{ OPENSTACK_RELEASE }}
+# Tacker horizon (installed when tacker is enabled) is set to master by default
+# instead of {{ OPENSTACK_RELEASE }}
+TACKERHORIZON_BRANCH={{ OPENSTACK_RELEASE }}
 enable_plugin tacker ${GIT_BASE}/openstack/tacker {{ OPENSTACK_RELEASE }}
 
 {% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
