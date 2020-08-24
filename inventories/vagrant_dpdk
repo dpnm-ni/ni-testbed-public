@@ -3,24 +3,21 @@ ansible_connection=ssh
 ansible_user=vagrant
 ansible_ssh_pass=vagrant
 
-ADMIN_PASSWORD='vagrant'
+ADMIN_PASSWORD='cjdakfnemfRo'
 
 COLLECTD_DIR='/opt/collectd'
 COLLECTD_INTERVAL=10
 COLLECTD_ENABLE_LISTEN=False
 COLLECTD_ENABLE_WEBSERVER=False
-COLLECTD_ENABLE_WRITE_KAFKA=True
 KAFKA_SERVER_ADDR={{ groups['monitoring'][0] }}
 INFLUXDB_SERVER_ADDR={{ groups['monitoring'][0] }}
 GRAFANA_RELEASE='5.4.3'
 
-STACK_DIR='/opt/stack'
 OPENSTACK_RELEASE='stable/rocky'
 
+PUBLIC_NETWORK_GATEWAY=192.168.3.1
 FLOATING_RANGE='192.168.4.0/24'
 Q_FLOATING_ALLOCATION_POOL='start=192.168.4.131,end=192.168.4.254'
-
-LIBVIRT_TYPE='kvm'
 
 DPDK_INSTALL=True
 DPDK_OVS_DPDK_BIND_PORT=True

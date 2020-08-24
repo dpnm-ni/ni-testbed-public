@@ -1,9 +1,4 @@
 ---
-- hosts: all
-  gather_facts: False
-  roles:
-  - common
-
 - hosts: controller
   roles:
   - controller
@@ -11,12 +6,6 @@
 - hosts: computes
   roles:
   - computes
-  tasks:
-  - name: "install collectd if monitoring host exist"
-    import_role:
-      name: collectd
-    when: "'monitoring' in groups"
-    tags: monitoring
 
 - hosts: controller
   roles:
@@ -38,6 +27,11 @@
         access: proxy
         database: collectd
         url: 'http://{{ INFLUXDB_SERVER_ADDR }}:8086'
+    docker_users: ["{{ ansible_user }}"]
+    graylog_port: 9001
+    graylog_rsyslog_port: 1514
+    rsyslog_listen_port: 10514
+    graylog_host_addr: "{{ inventory_hostname }}"
   roles:
   - firewall
   - role: influxdb
@@ -47,69 +41,35 @@
   - kafdrop
   - role: grafana
     tags: grafana
-
+  - logcenter
+  - graylog
   tasks:
   - name: "config rsyslog"
-    with_items: [kafka_extractor, ni_mon, ni_nfvo]
+    with_items: [ni_collector, ni_mon, ni_nfvo]
     include_role:
       name: rsyslog
     vars:
       RSYSLOG_SERVICE_ID: "{{ item }}"
   - name: "install and config ni_mano services"
-    with_items: [kafka_extractor, ni_mon, ni_nfvo]
+    with_items: [ni_collector, ni_mon, ni_nfvo]
     include_role:
       name: ni_mano
       apply:
         tags: ni_mano, "{{ item }}"
     vars:
       SERVICE_MODULE: "{{ item }}"
-    tags: ni_mano, kafka_extractor, ni_mon, ni_nfvo
+    tags: ni_mano, ni_collector, ni_mon, ni_nfvo
 
-  tags: monitoring
-
-#
-# ntp. controller is the ntp server.
-#
 - hosts: controller
-  vars:
-    ntp_timezone: "{{ TIME_ZONE | default('Asia/Seoul') }}"
-    ntp_manage_config: true
-    ntp_area: asia
-    ntp_restrict:
-    - "127.0.0.1"
-    # why need ::1: https://serverfault.com/questions/558596/ntp-local-query-always-times-out
-    - "::1"
-    - "{{ NTP_LOCAL_NET }} nomodify notrap"
   roles:
-  - ntp
-  tags: ntp
-  become: true
+  - ni_horizon
 
-- hosts: computes, monitoring
-  vars:
-    ntp_timezone: "{{ TIME_ZONE | default('Asia/Seoul') }}"
-    ntp_manage_config: true
-    ntp_servers:
-    - "{{ groups['controller'][0] }} iburst"
-  roles:
-  - ntp
-  tags: ntp
-  become: true
-
-- hosts: all
+- hosts: computes
   tasks:
-  - name: "disable timesyncd so we use NTP only"
-    raw: timedatectl set-ntp off
-
-  - name: "restart ntp service"
-    systemd:
-      name: ntp
-      state: restarted
-      enabled: true
-      daemon_reload: yes
-
-  become: true
-  tags: ntp
+  - name: "install collectd if monitoring host exist"
+    import_role:
+      name: collectd
+    when: "'monitoring' in groups"
 
 - hosts: monitoring
   roles:

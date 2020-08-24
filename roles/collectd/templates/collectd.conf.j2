@@ -10,7 +10,7 @@
 # Global settings for the daemon.                                            #
 ##############################################################################
 
-Hostname    "{{ HOST_NAME }}"
+#Hostname    "localhost"
 #FQDNLookup   true
 #BaseDir     "${prefix}/var/lib/collectd"
 #PIDFile     "${prefix}/var/run/collectd.pid"
@@ -174,7 +174,7 @@ LoadPlugin network
 ##LoadPlugin ovs_stats
 ##LoadPlugin perl
 ##LoadPlugin pinba
-{% if groups['computes']|length > 1 and not DPDK_INSTALL%}
+{% if groups['computes']|length > 1 and COLLECT_ENABLE_PING is defined and COLLECT_ENABLE_PING and not DPDK_INSTALL %}
 LoadPlugin ping
 {% endif %}
 #LoadPlugin postgresql
@@ -218,10 +218,8 @@ LoadPlugin virt
 #LoadPlugin vserver
 #LoadPlugin wireless
 #LoadPlugin write_graphite
-##LoadPlugin write_http
-{% if COLLECTD_ENABLE_WRITE_KAFKA %}
-LoadPlugin write_kafka
-{% endif %}
+LoadPlugin write_http
+#LoadPlugin write_kafka
 #LoadPlugin write_log
 ##LoadPlugin write_mongodb
 ##LoadPlugin write_prometheus
@@ -275,6 +273,29 @@ LoadPlugin write_kafka
 #    StoreRates false
 #    ConnectionRetryDelay 0
 #  </Publish>
+#</Plugin>
+
+#<Plugin amqp1>
+#  <Transport "name">
+#    Host "localhost"
+#    Port "5672"
+#    User "guest"
+#    Password "guest"
+#    Address "collectd"
+#    RetryDelay 1
+#    <Instance "log">
+#        Format JSON
+#        PreSettle false
+#    </Instance>
+#    <Instance "notify">
+#        Format JSON
+#        PreSettle true
+#    </Instance>
+#    <Instance "telemetry">
+#        Format JSON
+#        PreSettle false
+#    </Instance>
+#  </Transport>
 #</Plugin>
 
 #<Plugin apache>
@@ -684,7 +705,6 @@ LoadPlugin write_kafka
 	Interface "{{ DATA_INTERFACE }}"
 	IgnoreSelected false
 	ReportInactive true
-	UniqueName false
 </Plugin>
 
 #<Plugin ipmi>
@@ -1131,7 +1151,7 @@ LoadPlugin write_kafka
 #		Script "script name"
 #	</View>
 #</Plugin>
-{% if groups['computes']|length > 1 and not DPDK_INSTALL %}
+{% if groups['computes']|length > 1 and COLLECT_ENABLE_PING is defined and COLLECT_ENABLE_PING and not DPDK_INSTALL %}
 <Plugin ping>
 {% for host in groups['computes'] %}
 {% if hostvars[host].inventory_hostname != inventory_hostname %}
@@ -1646,13 +1666,13 @@ LoadPlugin write_kafka
 #  </Node>
 #</Plugin>
 
-#<Plugin write_http>
-#	<Node "example">
-#		URL "http://example.com/collectd-post"
+<Plugin write_http>
+	<Node "example">
+		URL "http://{{ NI_COLLECTOR_SERVER_ADDR }}:{{ NI_COLLECTOR_SERVER_PORT }}/collectd"
 #		User "collectd"
 #		Password "weCh3ik0"
-#		VerifyPeer true
-#		VerifyHost true
+		VerifyPeer false
+		VerifyHost false
 #		CACert "/etc/ssl/ca.crt"
 #		CAPath "/etc/ssl/certs/"
 #		ClientKey "/etc/ssl/client.pem"
@@ -1660,7 +1680,8 @@ LoadPlugin write_kafka
 #		ClientKeyPass "secret"
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
-#		Format "Command"
+		# Format "Command"
+		Format "JSON"
 #		Prefix "collectd"  # metric prefix, only available for KAIROSDB format
 #		Attribute "key" "value"     # only available for KAIROSDB format
 #		TTL 0   # data ttl, only available for KAIROSDB format
@@ -1670,17 +1691,8 @@ LoadPlugin write_kafka
 #		BufferSize 4096
 #		LowSpeedLimit 0
 #		Timeout 0
-#	</Node>
-#</Plugin>
-
-{% if COLLECTD_ENABLE_WRITE_KAFKA %}
-<Plugin write_kafka>
- Property "metadata.broker.list" "{{ KAFKA_SERVER_ADDR }}:9092"
- <Topic "collectd_raw">
-   Format JSON
- </Topic>
+	</Node>
 </Plugin>
-{% endif %}
 
 #<Plugin write_mongodb>
 #	<Node "example">

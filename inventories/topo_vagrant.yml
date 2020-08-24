@@ -1,0 +1,19 @@
+nodes:
+- id: "compute1"
+  type: "compute"
+- id: "compute2"
+  type: "compute"
+- id: "Switch-core-01"
+  type: "switch"
+
+links:
+- id: 1
+  node1_id: "Switch-core-01"
+  node2_id: "compute1"
+  delay_us: 100
+  max_bw_mbps: 10000
+- id: 2
+  node1_id: "Switch-core-01"
+  node2_id: "compute2"
+  delay_us: 100
+  max_bw_mbps: 10000

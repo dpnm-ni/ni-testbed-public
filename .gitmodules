@@ -7,3 +7,6 @@
 [submodule "roles/ntp"]
 	path = roles/ntp
 	url = https://github.com/geerlingguy/ansible-role-ntp
+[submodule "roles/docker"]
+	path = roles/docker
+	url = https://github.com/geerlingguy/ansible-role-docker

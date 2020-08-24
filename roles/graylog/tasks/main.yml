@@ -1,0 +1,42 @@
+---
+- block:
+  - name: Create graylog docker folder if it does not exist
+    file:
+      path: /home/{{ ansible_user }}/graylog-docker
+      state: directory
+      mode: '0755'
+
+  - name: Calculate root password sha256
+    shell: |
+      echo -n {{ ADMIN_PASSWORD }} | sha256sum | cut -d" " -f1
+    register: cal_root_passwd_sha256
+  - debug:
+      var: cal_root_passwd_sha256.stdout
+  - set_fact:
+      root_passwd_sha256: "{{ cal_root_passwd_sha256.stdout }}"
+
+  # adding 1234 to change the sha256 result
+  - name: Calculate graylog secret by unsing sha256
+    shell: |
+      echo -n {{ ADMIN_PASSWORD }}1234 | sha256sum | cut -d" " -f1
+    register: cal_graylog_secret
+  - debug:
+      var: cal_graylog_secret.stdout
+  - set_fact:
+      graylog_secret: "{{ cal_graylog_secret.stdout }}"
+
+  - name: "templating docker-compose.yml"
+    template:
+      src: ../templates/docker-compose.yml.j2
+      dest: /home/{{ ansible_user }}/graylog-docker/docker-compose.yml
+      mode: 0644
+
+  - name: "docker-compose up"
+    shell: |
+      docker-compose stop
+      yes | docker-compose rm
+      docker-compose up -d
+    args:
+      chdir: /home/{{ ansible_user }}/graylog-docker
+
+  tags: graylog

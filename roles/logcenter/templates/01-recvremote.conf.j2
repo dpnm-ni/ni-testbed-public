@@ -1,0 +1,12 @@
+# TODO: use RELP protocol for better reliability
+module(load="imtcp")
+
+# log every host in its own directory
+template (name="RemoteHost" type="string" string="/var/log/hosts/%HOSTNAME%/%programname%.log")
+
+ruleset(name="remote"){
+    action(type="omfile" dynaFile="RemoteHost")
+    action(type="omfwd" target="{{ graylog_host_addr }}" port="{{ graylog_rsyslog_port }}" protocol="tcp" template="RSYSLOG_SyslogProtocol23Format")
+}
+
+input(type="imtcp" port="{{ rsyslog_listen_port }}" ruleset="remote")

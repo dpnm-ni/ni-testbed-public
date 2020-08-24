@@ -1,0 +1,22 @@
+---
+- block:
+  - name: "Ensure rsyslog is available"
+    apt:
+      name: ['rsyslog']
+      state: present
+
+  - name: "config rsyslog to receive logs from remote hosts"
+    template:
+      src: ../templates/01-recvremote.conf.j2
+      dest: /etc/rsyslog.d/01-recvremote.conf
+      mode: 0644
+
+  - name: "restart rsyslog service"
+    systemd:
+      name: rsyslog
+      state: restarted
+      enabled: true
+      daemon_reload: yes
+
+  become: true
+  tags: logcenter

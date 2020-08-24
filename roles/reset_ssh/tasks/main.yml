@@ -1,0 +1,4 @@
+---
+- name: reset ssh connection
+  meta: reset_connection
+  tags: reset_ssh

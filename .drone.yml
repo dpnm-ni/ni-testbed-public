@@ -27,25 +27,28 @@ steps:
 
 - name: deploy devstack rocky on vagrant
   commands:
-  - vagrant up --provider=libvirt --no-parallel
-  - ansible-playbook -i inventories/vagrant openstack.yml
+  - vagrant --ci -- up --provider=libvirt --no-parallel
+  - ansible-playbook -i inventories/vagrant_ci bootstrap.yml
+  - ansible-playbook -i inventories/vagrant_ci openstack.yml
 
 - name: deploy devstack rocky with dpdk on vagrant
   commands:
-  - vagrant destroy -f
-  - vagrant up --provider=libvirt --no-parallel
-  - ansible-playbook -i inventories/vagrant_dpdk openstack.yml
+  - vagrant --ci -- destroy -f
+  - vagrant --ci -- up --provider=libvirt --no-parallel
+  - ansible-playbook -i inventories/vagrant_dpdk_ci bootstrap.yml
+  - ansible-playbook -i inventories/vagrant_dpdk_ci openstack.yml
 
 - name: deploy devstack train on vagrant
   commands:
-  - vagrant destroy -f
-  - sed -i "s|stable/rocky|stable/train|g" inventories/vagrant
-  - vagrant up --provider=libvirt --no-parallel
-  - ansible-playbook -i inventories/vagrant openstack.yml
+  - vagrant --ci -- destroy -f
+  - sed -i "s|stable/rocky|stable/train|g" inventories/vagrant_ci
+  - vagrant --ci -- up --provider=libvirt --no-parallel
+  - ansible-playbook -i inventories/vagrant_ci bootstrap.yml
+  - ansible-playbook -i inventories/vagrant_ci openstack.yml
 
 - name: final cleanup
   commands:
-  - vagrant destroy -f
+  - vagrant --ci -- destroy -f
 
 - name: notify slack if build success
   environment:

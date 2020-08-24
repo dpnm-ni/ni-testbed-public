@@ -19,3 +19,18 @@
 
   become: true
   become_user: stack
+
+- name: "templating net_config script to make controller persistent after reboot"
+  template:
+    src: ../templates/net_config.sh.j2
+    dest: /home/{{ ansible_user }}/net_config.sh
+    mode: '755'
+  tags: persistent_reboot
+
+- name: "set net_config to run at boot using crontab reboot"
+  cron:
+    name: "net_config cron reboot"
+    special_time: reboot
+    job: "/home/{{ ansible_user }}/net_config.sh"
+  become: true
+  tags: persistent_reboot

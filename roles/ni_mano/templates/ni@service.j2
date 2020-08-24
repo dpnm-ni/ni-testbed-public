@@ -1,5 +1,7 @@
 [Unit]
 Description = ni ni@{{ SERVICE_MODULE }}.service
+StartLimitInterval=60
+StartLimitBurst=3
 
 [Service]
 ExecReload = /bin/kill -HUP $MAINPID
@@ -11,6 +13,9 @@ ExecStart = /home/{{ ansible_user }}/ni_mano/.env/bin/python3 -m {{ SERVICE_MODU
 ExecStopPost = /usr/bin/curl -X POST --data-urlencode "payload={\"channel\": \"#error_notification\", \"username\": \"ni_bot\", \"text\": \"{{ SERVICE_MODULE }} service in {{ inventory_hostname  }} is stopped\"}" {{ SLACK_HOOK_URL }}
 {% endif %}
 User = {{ ansible_user }}
+
+Restart=on-failure
+RestartSec=5
 
 StandardOutput=syslog
 StandardError=syslog

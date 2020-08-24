@@ -1,5 +1,7 @@
 [Unit]
 Description = ni ni@collectd-web.service
+StartLimitInterval=60
+StartLimitBurst=3
 
 [Service]
 ExecReload = /bin/kill -HUP $MAINPID
@@ -9,5 +11,9 @@ ExecStart = /home/{{ ansible_user }}/collectd-web/runserver.py 0.0.0.0 8888
 {% if SLACK_HOOK_URL is defined %}
 ExecStopPost = /usr/bin/curl -X POST --data-urlencode "payload={\"channel\": \"#error_notification\", \"username\": \"ni_bot\", \"text\": \"collectd_web service in {{ inventory_hostname  }} is stopped\"}" {{ SLACK_HOOK_URL }}
 {% endif %}
+
+Restart=on-failure
+RestartSec=5
+
 [Install]
 WantedBy = multi-user.target

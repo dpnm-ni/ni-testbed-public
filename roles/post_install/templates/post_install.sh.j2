@@ -41,16 +41,18 @@ done
 DEFAULT_OS_IMAGE_ID=$(openstack image list | grep -w 'u16.04_x64' | sed 's/|/ /g' | awk '{print $1}')
 # command may return error if flavor exist, so set +e
 set +e
-for CPUS in 1 2 4; do
+for CPUS in 1 2 4 8; do
     for RAM in $(( $CPUS * 512 )) $(( $CPUS * 1024 )); do
-        openstack flavor create --ram $RAM --disk 10 --vcpus $CPUS \
-                        --property capacity_mbps=10000 --property delay_us=500 \
-                        --property os_image_id=${DEFAULT_OS_IMAGE_ID} \
-                        --property hw:cpu_policy=dedicated --property hw:cpu_thread_policy=prefer \
-                        {% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
-                        --property hw:mem_page_size=any \
-                        {% endif %}
-                        vnf.generic.${CPUS}.${RAM}
+        for DISK in 10 20; do
+            openstack flavor create --ram $RAM --disk $DISK --vcpus $CPUS \
+                            --property capacity_mbps=10000 --property delay_us=500 \
+                            --property os_image_id=${DEFAULT_OS_IMAGE_ID} \
+                            --property hw:cpu_policy=dedicated --property hw:cpu_thread_policy=prefer \
+                            {% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
+                            --property hw:mem_page_size=any \
+                            {% endif %}
+                            vnf.generic.${CPUS}.${RAM}.${DISK}G
+        done
     done
 done
 
@@ -61,7 +63,7 @@ openstack flavor create --ram 512 --disk 10 --vcpus 1 \
                         {% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
                         --property hw:mem_page_size=any \
                         {% endif %}
-                        vnf.fw.1.512
+                        vnf.fw.1.512.10G
 
 openstack flavor create --ram 2048 --disk 10 --vcpus 4 \
                         --property capacity_mbps=500 --property delay_us=2000 \
@@ -70,7 +72,7 @@ openstack flavor create --ram 2048 --disk 10 --vcpus 4 \
                         {% if ( ( DPDK_INSTALL is defined ) and DPDK_INSTALL ) %}
                         --property hw:mem_page_size=any \
                         {% endif %}
-                        vnf.ips.4.2048
+                        vnf.ips.4.2048.10G
 set -e
 
 
@@ -104,7 +106,7 @@ cat << EOF > cloud-config
 EOF
 SAMPLE_VNF_NAME="vnf_sample_do_not_delete"
 if ! $(openstack server list | grep -wqi "$SAMPLE_VNF_NAME"); then
-    openstack server create --flavor vnf.generic.1.512 \
+    openstack server create --flavor vnf.generic.1.512.10G \
                             --image $DEFAULT_OS_IMAGE_ID \
                             --network $NI_MAN_NET --network $NI_DATA_NET \
                             --user-data cloud-config \

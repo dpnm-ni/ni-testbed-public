@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# restore controller network configuration after reboot
+#
+
+# wait for reboot completely and everything ready
+sleep 180
+
+IP=$(ip -f inet addr show eth1 | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')
+
+ip route | grep {{ DATA_INTERFACE }} | xargs ip route del
+ip addr flush dev {{ DATA_INTERFACE }}
+
+ip addr add "$IP" dev br-ex
+ip link set br-ex up
+ip route add {{ FLOATING_RANGE }} dev br-ex

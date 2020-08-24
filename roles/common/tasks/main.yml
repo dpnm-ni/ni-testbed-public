@@ -18,6 +18,11 @@
         - python
         - tar
 
+    - name: "Set locale to en_US to prevent timezone issue"
+      shell:
+        cmd: update-locale LC_ALL=C LANG=C LANGUAGE=en_US.UTF-8
+      tags: set_locale
+
     - name: "Add stack user"
       user:
         name: stack

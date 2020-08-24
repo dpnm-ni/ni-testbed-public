@@ -17,7 +17,7 @@
       state: present
     become: true
   - apt:
-      name: ['librdkafka-dev=0.11.*']
+      name: ['librdkafka-dev=0.11.*', 'libcurl4-openssl-dev']
       state: present
     become: true
 

@@ -1,0 +1,42 @@
+---
+- block:
+
+  - name: "clone ni_mano"
+    git:
+      repo: 'https://github.com/dpnm-ni/ni-mano'
+      dest: "{{ STACK_DIR }}/ni_mano"
+
+  - name: "templating ni_horizon config"
+    template:
+      src: ../templates/config.yaml.j2
+      dest: "{{ STACK_DIR }}/ni_mano/ni_horizon/ni_horizon/openstack_dashboard/api/config/config.yaml"
+      mode: 0644
+
+  - name: "install ni_horizon as editable mode"
+    shell: |
+      pip install --user -e ni_mano/ni_mon_client_api
+      pip install --user -e ni_mano/ni_nfvo_client_api
+      pip install --user -e ni_mano/ni_horizon
+    args:
+      chdir: "{{ STACK_DIR }}"
+
+  - name: "enable ni_horizon dashboard in Openstack horizon"
+    shell:
+      cmd: cp ni_mano/ni_horizon/ni_horizon/enabled/_50_ni_mano.py horizon/openstack_dashboard/enabled/
+      chdir: "{{ STACK_DIR }}"
+
+  - name: " regenerate horizon static files"
+    shell:
+      cmd: echo yes | ./manage.py collectstatic && ./manage.py compress
+      chdir: "{{ STACK_DIR }}/horizon"
+
+  become: yes
+  become_user: stack
+  tags: ni_horizon
+
+- name: "restart apache2"
+  systemd:
+    name: apache2
+    state: restarted
+  become: true
+  tags: ni_horizon

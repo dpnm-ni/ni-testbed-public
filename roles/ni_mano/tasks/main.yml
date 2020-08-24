@@ -27,6 +27,12 @@
       dest: /home/{{ ansible_user }}/ni_mano/{{ SERVICE_MODULE }}/config/config.yaml
       mode: 0644
 
+  - name: "config topology"
+    template:
+      src: ../../inventories/{{ TOPO_FILE }}
+      dest: /home/{{ ansible_user }}/ni_mano/{{ SERVICE_MODULE }}/config/topo.yaml
+    when: SERVICE_MODULE == "ni_mon"
+
   - name: "config {{ SERVICE_MODULE }} as systemd service"
     template:
       src: ../templates/ni@service.j2
