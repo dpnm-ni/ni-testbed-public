@@ -43,7 +43,7 @@ DEFAULT_OS_IMAGE_ID=$(openstack image list | grep -w 'u16.04_x64' | sed 's/|/ /g
 set +e
 for CPUS in 1 2 4 8; do
     for RAM in $(( $CPUS * 512 )) $(( $CPUS * 1024 )); do
-        for DISK in 10 20; do
+        for DISK in 10 20 40; do
             openstack flavor create --ram $RAM --disk $DISK --vcpus $CPUS \
                             --property capacity_mbps=10000 --property delay_us=500 \
                             --property os_image_id=${DEFAULT_OS_IMAGE_ID} \
@@ -85,7 +85,8 @@ DEFAULT_ROUTER="router1"
 if ! $(openstack network list | grep -wqi "$NI_MAN_NET"); then
     openstack network create --share $NI_MAN_NET
     openstack subnet create subnet-$NI_MAN_NET --network $NI_MAN_NET \
-                                               --subnet-range 10.10.10.0/24
+                                               --subnet-range 10.10.10.0/24 \
+                                               --dns-nameserver 8.8.8.8
     openstack router add subnet $DEFAULT_ROUTER subnet-$NI_MAN_NET
 fi
 
@@ -93,7 +94,7 @@ if ! $(openstack network list | grep -wqi "$NI_DATA_NET"); then
     openstack network create --share $NI_DATA_NET
     openstack subnet create subnet-$NI_DATA_NET --network $NI_DATA_NET \
                                                 --subnet-range 10.10.20.0/24 \
-                                                --no-dhcp --gateway none
+                                                --dns-nameserver 8.8.8.8
 fi
 
 # create cloud config file and sample vnf

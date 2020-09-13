@@ -3,7 +3,7 @@
 - block:
   - name: "Install build packages"
     apt:
-      name: ['build-essential', 'librrd-dev', 'liboping-dev']
+      name: ['build-essential', 'librrd-dev', 'liboping-dev', "autoconf", "automake", "flex", "bison", "libtool", "pkg-config"]
       state: present
     become: true
 
@@ -21,27 +21,32 @@
       state: present
     become: true
 
-  - name: "Extract collectd 5.8.1 source"
-    unarchive:
-      src: ../files/collectd-5.8.1.tar.bz2
-      dest: /home/{{ ansible_user }}/
-      extra_opts:
-      - --transform
-      - 's/collectd-5.8.1/collectd/'
+  - name: "Clone ni collectd"
+    git:
+      repo: 'https://github.com/dpnm-ni/collectd'
+      dest: /home/{{ ansible_user }}/ni-collectd
+      version: "collectd-5.9"
 
-  - name: "make-generate collectd"
+  - name: "compile collectd"
     shell: |
+      ./build.sh
       ./configure --prefix {{ COLLECTD_DIR }}
       make all
     args:
       executable: /bin/bash
-      chdir: /home/{{ ansible_user }}/collectd/
+      chdir: /home/{{ ansible_user }}/ni-collectd
+
+  - name: "remove old collectd install if exist"
+    file:
+        path: "{{ COLLECTD_DIR }}"
+        state: absent
+    become: true
 
   - name: "install collectd"
     shell: make install
     args:
       executable: /bin/bash
-      chdir: /home/{{ ansible_user }}/collectd/
+      chdir: /home/{{ ansible_user }}/ni-collectd
     become: true
 
   - name: "Ensure python-pip and virtualenv are available"

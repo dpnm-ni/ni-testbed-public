@@ -25,7 +25,7 @@
       - name: InfluxDB
         type: influxdb
         access: proxy
-        database: collectd
+        database: ni
         url: 'http://{{ INFLUXDB_SERVER_ADDR }}:8086'
     docker_users: ["{{ ansible_user }}"]
     graylog_port: 9001

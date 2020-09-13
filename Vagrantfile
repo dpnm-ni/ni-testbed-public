@@ -26,9 +26,11 @@ STACK_DIR = "/opt/stack"
 # for dpdk test, use e1000 instead of virtio
 # see: https://bugs.launchpad.net/networking-ovs-dpdk/+bug/1704279
 NIC_TYPE = "virtio"
+OVSBR_NAME = "ovsbr0"
 
 if is_ci
     VM_POSTFIX = '-ci'
+    OVSBR_NAME = 'ovsbr0-ci'
     CONTROL_SUBNET = "192.168.5"
     DATA_SUBNET = "192.168.6"
     is_expose_port = false
@@ -81,7 +83,7 @@ Vagrant.configure("2") do |config|
         end
         controller.vm.network :public_network,
             :ip => "#{CONTROL_SUBNET}.11",
-            :dev => "ovsbr0",
+            :dev => "#{OVSBR_NAME}",
             :type => 'bridge',
             :ovs => true
         controller.vm.provider :libvirt do |libvirt|
@@ -95,7 +97,7 @@ Vagrant.configure("2") do |config|
             compute.vm.hostname = "compute#{i}#{VM_POSTFIX}"
             compute.vm.network :public_network,
                 :ip => "#{CONTROL_SUBNET}.#{i + 30}",
-                :dev => "ovsbr0",
+                :dev => "#{OVSBR_NAME}",
                 :type => 'bridge',
                 :ovs => true
             compute.vm.provider :libvirt do |libvirt|
@@ -116,7 +118,7 @@ Vagrant.configure("2") do |config|
         end
         monitoring.vm.network :public_network,
             :ip => "#{CONTROL_SUBNET}.21",
-            :dev => "ovsbr0",
+            :dev => "#{OVSBR_NAME}",
             :type => 'bridge',
             :ovs => true
         monitoring.vm.provider :libvirt do |libvirt|

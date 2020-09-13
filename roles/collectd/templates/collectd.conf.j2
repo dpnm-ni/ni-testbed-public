@@ -88,7 +88,7 @@ LoadPlugin syslog
 # to missing dependencies or because they have been deactivated explicitly.  #
 ##############################################################################
 
-LoadPlugin aggregation
+# LoadPlugin aggregation
 ##LoadPlugin amqp
 ##LoadPlugin apache
 #LoadPlugin apcups
@@ -240,25 +240,25 @@ LoadPlugin write_http
 # ription of those options is available in the collectd.conf(5) manual page. #
 ##############################################################################
 
-<Plugin aggregation>
-    <Aggregation>
-        #Host "unspecified"
-        Plugin "virt"
-        #PluginInstance "unspecified"
-        Type "virt_vcpu"
-        #TypeInstance "unspecified"
+# <Plugin aggregation>
+#     <Aggregation>
+#         #Host "unspecified"
+#         Plugin "virt"
+#         #PluginInstance "unspecified"
+#         Type "virt_vcpu"
+#         #TypeInstance "unspecified"
 
-        GroupBy "Host"
-        # GroupBy "TypeInstance"
+#         GroupBy "Host"
+#         # GroupBy "TypeInstance"
 
-        CalculateNum false
-        CalculateSum false
-        CalculateAverage true
-        CalculateMinimum false
-        CalculateMaximum false
-        CalculateStddev false
-    </Aggregation>
-</Plugin>
+#         CalculateNum false
+#         CalculateSum false
+#         CalculateAverage true
+#         CalculateMinimum false
+#         CalculateMaximum false
+#         CalculateStddev false
+#     </Aggregation>
+# </Plugin>
 
 #<Plugin amqp>
 #  <Publish "name">
@@ -1640,7 +1640,7 @@ LoadPlugin write_http
 #   InterfaceFormat name
 #   PluginInstanceFormat name
 #   Instances 1
-    ExtraStats "disk"
+    ExtraStats "vcpu memory disk"
 </Plugin>
 {% endif %}
 
@@ -1687,7 +1687,7 @@ LoadPlugin write_http
 #		TTL 0   # data ttl, only available for KAIROSDB format
 #		Metrics true
 #		Notifications false
-#		StoreRates false
+		StoreRates true
 #		BufferSize 4096
 #		LowSpeedLimit 0
 #		Timeout 0
@@ -1861,7 +1861,7 @@ LoadPlugin match_regex
     <Rule "virt_cpu_metrics">
         <Match "regex">
             Plugin "^virt"
-            Type "^virt_vcpu$"
+            Type "^(virt_vcpu|virt_vcpu_steal|virt_vcpu_guest_avg)$"
         </Match>
         Target "write"
     </Rule>
@@ -1874,12 +1874,12 @@ LoadPlugin match_regex
         Target "write"
     </Rule>
 
-    <Rule "aggregation_metrics">
-        <Match "regex">
-            Plugin "^aggregation"
-        </Match>
-        Target "write"
-    </Rule>
+    # <Rule "aggregation_metrics">
+    #     <Match "regex">
+    #         Plugin "^aggregation"
+    #     </Match>
+    #     Target "write"
+    # </Rule>
 
     Target "stop"
 </Chain>
