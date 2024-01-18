@@ -26,7 +26,7 @@ git submodule update --init --recursive
 ```
 ### Prepare env
 #### NI testbed with VMs
-We recommend (as we only tested on) Ubuntu 18.04 LTS or 16.04 with [HWE](https://wiki.ubuntu.com/Kernel/LTSEnablementStack) kernel.
+We recommend (as we only tested on) Ubuntu 18.04 LTS kernel.
 
 - Install vagrant.
     ```bash
